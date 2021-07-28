@@ -57,7 +57,7 @@ client.on(`message`, (msg) =>{
                     index++;
                     const valchannel=msg.guild.channels.cache.get(val[0]);
                     if(valchannel==null||valchannel==undefined){
-                        notchannel="not find";
+                        var notchannel="not find";
                         list=list+String(index).padStart(5)+"　|　"+notchannel.padStart(15)+"　|　"+val[1].padStart(7)+"\n";
                     }
                     else{
