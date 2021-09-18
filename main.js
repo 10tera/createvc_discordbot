@@ -1,23 +1,20 @@
 const Discord=require('discord.js');
 const intents=new Discord.Intents();
-const client=new Discord.Client({ws:{intents:intents.ALL}});
+const client=new Discord.Client();
 var filepath="./config.json";
 var config=require(filepath);
 
 const fs=require("fs");
 
-
 client.on('ready',() =>{
     console.log("login with "+client.user.tag+" now");
 })
 
-client.on(`message`, async (msg) =>{
+
+client.on('message',async (msg)=>{
     if(msg.author.bot)return;
 
-
     const args = msg.content.split(" ");
-
-
     if(args[0]==='!addvc'){
         if(args.length<5){
             const embed=new Discord.MessageEmbed();
@@ -105,7 +102,345 @@ client.on(`message`, async (msg) =>{
         });
 
     }
+    /*
+        !men 人数 チャンネルID
+     */
+    else if(args[0]==='!men'){
+        if(args.length!==3){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("コマンドエラー")
+                .setColor("RED")
+                .setDescription("引数が足りないもしくは多すぎます");
+            msg.channel.send(embed);
+            return;
+        }
+        const targetchannel=msg.guild.channels.cache.get(args[2]);
+        if(targetchannel===undefined){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("チャンネルが見つかりません")
+                .setColor("RED")
+                .setDescription("指定したチャンネルは見つかりませんでした");
+            msg.channel.send(embed);
+            return;
+        }
+        const users=targetchannel.members.keyArray();
+        var keys=[...Array(users.length).keys()];
+        keys=shuffle(keys);
+        //var a=[0,1,2,3,4,5,6,7,8,9,10];
+        //a=shuffle(a);
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            var list="";
+            var key=0;
+            for(var i=1;i<21;i++){
+                if(configdata.teamlist["team"+i].length===0){
+                    list+="Team"+i+"\n";
+                    for(var j=0;j<args[1];j++){
+                        if(keys.length>key){
+                            var member=msg.guild.members.cache.get(users[keys[key]]);
+                            list+="　　"+member.user.tag+"\n";
+                            key++;
+                        }
+                    }
+                }
+            }
+            if(keys.length>key){
+                list+="余り\n";
+                for(var i=key;i<keys.length;i++){
+                    var member=msg.guild.members.cache.get(users[keys[key]]);
+                    list+="　　"+member.user.tag+"\n";
+                }
+            }
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("チーム振り分け完了")
+                .setColor("GREEN")
+                .setDescription(list);
+            msg.channel.send(embed);
+            return;
+        })
+    }
+    /*
+        !teamlist
+     */
+    else if(args[0]==='!teamlist'){
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            const embed=new Discord.MessageEmbed();
+            var list="";
+            for(var i=1;i<21;i++){
+                list+="Team"+i+"\n";
+                for(var j=0;j<configdata.teamlist["team"+i].length;j++){
+                    var member=msg.guild.members.cache.get(configdata.teamlist["team"+i][j]);
+                    if(member===undefined||member===null){
+                        list+="　　Undefined\n";
+                    }
+                    else{
+                        list+="　　"+member.user.tag+"\n";
+                    }
+                }
+            }
+            embed.setTitle("固定チームリスト")
+                .setColor("GREEN")
+                .setDescription(list);
+            msg.channel.send(embed);
+            return;
+        })
+    }
+    /*
+        !team チーム番号
+     */
+    else if(args[0]==='!team'){
+        if(args.length!==2){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("コマンドエラー")
+                .setColor("RED")
+                .setDescription("引数が足りないもしくは多すぎます");
+            msg.channel.send(embed);
+            return;
+        }
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            const teammei="team"+args[1];
+            if(configdata.teamlist[teammei].length>2){
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("指定したチームへ申請できません")
+                    .setColor("BLUE")
+                    .setDescription("指定したチームはすでに埋まっています");
+                msg.channel.send(embed);
+                return;
+            }
+            for(var i=1;i<21;i++){
+                if(configdata.teamlist["team"+i].includes(msg.author.id)){
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("既にチーム申請を出しています")
+                        .setColor("BLUE")
+                        .setDescription("既にチーム"+i+"へ参加しています。一度申請を削除してから再度お試しください。");
+                    msg.channel.send(embed);
+                    return;
+                }
+            }
+            configdata.teamlist[teammei].push(msg.author.id);
+            const configtext=JSON.stringify(configdata,undefined,4);
+            fs.writeFile("config.json",configtext,{encoding:"utf-8"},(err2)=>{
+                if(err){
+                    console.error(err2);
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("ファイルエラー")
+                        .setColor("RED")
+                        .setDescription("cannot write config file");
+                    msg.channel.send(embed);
+                    return;
+                }
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("固定チームの申請を完了")
+                    .setColor("GREEN")
+                    .setDescription("チーム"+args[1]+"への申請を完了しました");
+                msg.channel.send(embed);
+                return;
+            })
+        })
+    }
+    /*
+        !teamdelete チーム番号
+     */
+    else if(args[0]==="!teamdelete"){
+        if(args.length!==2){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("コマンドエラー")
+                .setColor("RED")
+                .setDescription("引数が足りないもしくは多すぎます");
+            msg.channel.send(embed);
+            return;
+        }
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            const teammei="team"+args[1];
+
+            if(configdata.teamlist[teammei].indexOf(msg.author.id)!==-1){
+                configdata.teamlist[teammei].splice(configdata.teamlist[teammei].indexOf(msg.author.id),1);
+            }
+            const configtext=JSON.stringify(configdata,undefined,4);
+            fs.writeFile("config.json",configtext,{encoding:"utf-8"},(err2)=>{
+                if(err){
+                    console.error(err2);
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("ファイルエラー")
+                        .setColor("RED")
+                        .setDescription("cannot write config file");
+                    msg.channel.send(embed);
+                    return;
+                }
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("固定チームの申請を削除")
+                    .setColor("GREEN")
+                    .setDescription("チーム"+args[1]+"への申請を削除しました");
+                msg.channel.send(embed);
+                return;
+            })
+        })
+    }
+    /*
+        !team_admin チーム番号 ユーザーID
+     */
+    else if(args[0]==="!team_admin"){
+        if(msg.author.id!==config.adminid){
+            return;
+        }
+        if(args.length!==3){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("コマンドエラー")
+                .setColor("RED")
+                .setDescription("引数が足りないもしくは多すぎます");
+            msg.channel.send(embed);
+            return;
+        }
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            const teammei="team"+args[1];
+            if(configdata.teamlist[teammei].length>2){
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("指定したチームへ申請できません")
+                    .setColor("BLUE")
+                    .setDescription("指定したチームはすでに埋まっています");
+                msg.channel.send(embed);
+                return;
+            }
+            for(var i=1;i<21;i++){
+                if(configdata.teamlist["team"+i].includes(args[2])){
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("既にチーム申請を出しています")
+                        .setColor("BLUE")
+                        .setDescription("既にチーム"+i+"へ参加しています。一度申請を削除してから再度お試しください。");
+                    msg.channel.send(embed);
+                    return;
+                }
+            }
+            configdata.teamlist[teammei].push(args[2]);
+            const configtext=JSON.stringify(configdata,undefined,4);
+            fs.writeFile("config.json",configtext,{encoding:"utf-8"},(err2)=>{
+                if(err){
+                    console.error(err2);
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("ファイルエラー")
+                        .setColor("RED")
+                        .setDescription("cannot write config file");
+                    msg.channel.send(embed);
+                    return;
+                }
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("固定チームの申請を完了")
+                    .setColor("GREEN")
+                    .setDescription("指定したIDの者のチーム"+args[1]+"への申請を完了しました");
+                msg.channel.send(embed);
+                return;
+            })
+        })
+    }
+    /*
+        !teamdelete_admin チーム番号 ユーザーID
+     */
+    else if(args[0]==="!teamdelete_admin"){
+        if(msg.author.id!==config.adminid){
+            return;
+        }
+        if(args.length!==3){
+            const embed=new Discord.MessageEmbed();
+            embed.setTitle("コマンドエラー")
+                .setColor("RED")
+                .setDescription("引数が足りないもしくは多すぎます");
+            msg.channel.send(embed);
+            return;
+        }
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            const teammei="team"+args[1];
+
+            if(configdata.teamlist[teammei].indexOf(args[2])!==-1){
+                configdata.teamlist[teammei].splice(configdata.teamlist[teammei].indexOf(args[2]),1);
+            }
+            const configtext=JSON.stringify(configdata,undefined,4);
+            fs.writeFile("config.json",configtext,{encoding:"utf-8"},(err2)=>{
+                if(err){
+                    console.error(err2);
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("ファイルエラー")
+                        .setColor("RED")
+                        .setDescription("cannot write config file");
+                    msg.channel.send(embed);
+                    return;
+                }
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("固定チームの申請を削除")
+                    .setColor("GREEN")
+                    .setDescription("指定した者のチーム"+args[1]+"への申請を削除しました");
+                msg.channel.send(embed);
+                return;
+            })
+        })
+    }
 })
+
+const shuffle = ([...array]) => {
+    for (let i = array.length - 1; i >= 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
 
 client.on('voiceStateUpdate', (oldState,newState) => onVoiceStateUpdate(oldState,newState));
 
@@ -201,7 +536,5 @@ async function onVoiceStateUpdate(oldState,newState){
         });
     }
 }
-
-
 
 client.login(config.token);
