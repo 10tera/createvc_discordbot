@@ -258,10 +258,11 @@ client.on('message',async (msg)=>{
                     msg.channel.send(embed);
                     return;
                 }
+                const mentionuser=client.users.fetch(msg.author.id);
                 const embed=new Discord.MessageEmbed();
                 embed.setTitle("固定チームの申請を完了")
                     .setColor("GREEN")
-                    .setDescription("チーム"+args[1]+"への申請を完了しました");
+                    .setDescription("<@"+msg.author.id+">\nチーム"+args[1]+"への申請を完了しました");
                 msg.channel.send(embed);
                 return;
             })
@@ -309,7 +310,50 @@ client.on('message',async (msg)=>{
                 const embed=new Discord.MessageEmbed();
                 embed.setTitle("固定チームの申請を削除")
                     .setColor("GREEN")
-                    .setDescription("チーム"+args[1]+"への申請を削除しました");
+                    .setDescription("<@"+msg.author.id+">\nチーム"+args[1]+"への申請を削除しました");
+                msg.channel.send(embed);
+                return;
+            })
+        })
+    }
+    /*
+        !allteamdelete
+     */
+    else if(args[0]==="!allteamdelete"){
+        if(msg.author.id!==config.adminid){
+            return;
+        }
+        fs.readFile("config.json",{encoding:"utf-8"},(err,file)=>{
+            if(err){
+                console.error(err);
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("ファイルエラー")
+                    .setColor("RED")
+                    .setDescription("cannot open config file");
+                msg.channel.send(embed);
+                return;
+            }
+            const configdata=JSON.parse(file);
+            var teammei="";
+            for(var i=1;i<21;i++){
+                teammei="team"+i;
+                configdata.teamlist[teammei].splice(0);
+            }
+            const configtext=JSON.stringify(configdata,undefined,4);
+            fs.writeFile("config.json",configtext,{encoding:"utf-8"},(err2)=>{
+                if(err){
+                    console.error(err2);
+                    const embed=new Discord.MessageEmbed();
+                    embed.setTitle("ファイルエラー")
+                        .setColor("RED")
+                        .setDescription("cannot write config file");
+                    msg.channel.send(embed);
+                    return;
+                }
+                const embed=new Discord.MessageEmbed();
+                embed.setTitle("全ての固定チームの申請を削除")
+                    .setColor("GREEN")
+                    .setDescription("全ての固定チームの申請を削除しました");
                 msg.channel.send(embed);
                 return;
             })
