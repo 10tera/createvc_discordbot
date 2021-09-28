@@ -6,6 +6,10 @@ var config=require(filepath);
 
 const fs=require("fs");
 
+process.on('uncaughtException', function(err) {
+    console.log(err);
+});
+
 client.on('ready',() =>{
     console.log("login with "+client.user.tag+" now");
 })
